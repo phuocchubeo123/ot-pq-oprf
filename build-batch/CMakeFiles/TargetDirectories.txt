@@ -1,0 +1,3 @@
+/src/build-batch/CMakeFiles/oprf.dir
+/src/build-batch/CMakeFiles/edit_cache.dir
+/src/build-batch/CMakeFiles/rebuild_cache.dir

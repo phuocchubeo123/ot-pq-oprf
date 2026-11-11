@@ -5,6 +5,12 @@ cmake_minimum_required(VERSION 3.12)
 
 set (CMAKE_CXX_STANDARD 20)
 
+# Default to an optimized build. Upstream's `cmake .. && make` leaves CMAKE_BUILD_TYPE empty, which
+# compiles main.cpp (all of the online phase) at -O0 while libOTe itself is a Release build.
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
 # Set the project name
 project (oprf)
 

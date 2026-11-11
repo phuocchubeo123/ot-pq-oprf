@@ -20,8 +20,30 @@ $ docker run -it oprf
 ```
 This will launch a container and a `bash` instance. From there, you can execute 
 ```bash
-$ ./oprf
+$ ./oprf local 127.0.0.1 1212
 ```
+
+### Running client and server on two machines
+```bash
+# server machine (listens)
+$ ./oprf server 0.0.0.0 1212 [all|online] [num_rounds]
+# client machine (connects)
+$ ./oprf client <server-ip> 1212 [all|online] [num_rounds]
+```
+`all` (default) first runs the alternative preprocessing benchmarks (`benchmark_alt_preproc`), as
+the original binary did. `online` only runs the preprocessing used by the online example, then the
+online phase. Both parties must use the same mode and `num_rounds` (default 10).
+Each party runs its own role: the client is the phase one sender and the phase two receiver, and
+the server is the reverse. Each party prints its own time and traffic for every phase, plus totals.
+
+The whole run uses a single coproto `AsioSocket` connection (TCP, `TCP_NODELAY`). A 1-byte
+barrier, which is neither timed nor counted, aligns the parties before every measured phase. Byte
+counts are coproto's socket counters and include its 8-byte per-message header. In the online
+phase the request `(e_1, b')` and the response `(y_0, ..., y_{delta-1})` are sent over the network,
+bit-packed to `lg_q`, `lg_delta` and `lg_p` bits per value. The server sends `b_bar = b xor sk`
+once, at the end of preprocessing. The client reports its computation time and its end-to-end
+latency per evaluation, and the server reports its BlindEval time. For the correctness check, the
+server reveals `sk` after the measured online phase, for testing only.
 Parameters can be adjusted via the constants in the `/home/ot-pq-oprf/main.cpp` file. Rebuilding is necessary and can be achieved by executing `make` in the `/home/ot-pq-oprf/build` directory inside the container.
 
 ### Performance discrepancies

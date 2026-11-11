@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG -pthread CMakeFiles/oprf.dir/main.cpp.o -o oprf  /usr/local/lib/liblibOTe.a /usr/local/lib/libcryptoTools.a /usr/local/lib/libsodium.a /usr/local/lib/libcoproto.a /usr/local/lib/libboost_system.a /usr/local/lib/libboost_thread.a /usr/local/lib/libmacoro.a /usr/local/lib/libKyberOT.a 
