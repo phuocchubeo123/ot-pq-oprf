@@ -1,0 +1,21 @@
+[Server] listening on 0.0.0.0:3000
+
+
+[Server] Computing preprocessing for online example...
+[Server] phase one silent ot receiver in 23ms, sent 439733 bytes and received 351832 bytes
+[Server] phase one PRG extension in 72736ms
+[Server] phase two silent ot sender in 11389ms, sent 494680 bytes and received 475573 bytes
+[Server] phase two Naor-Pinkas conversion in 2579ms
+[Server] key correction (b_bar) send in 0ms, sent 69 bytes and received 0 bytes
+[Server] preprocessing total for the online example in 86727ms, sent 934482 bytes and received 827405 bytes
+RESULT protocol=pool preproc=silent role=server phase=offline batch=1048576 wall_ms=166812 cpu_ms=95127.3 sent=934509 recv=827432
+
+[Server] PSI: client set 1048576, server set 1048576
+local buffer size:   12146704384 bytes
+transmitted size: 3556769792 bytes
+
+0 /usr/local/include/macoro/sync_wait.h:125
+1 /src/main.cpp:1825
+: coproto::code::badBufferSize: Bad buffer size. The reciever's buffer size does not match the number of bytes sent.
+Command exited with non-zero status 1
+MAXRSS_KB=27957140

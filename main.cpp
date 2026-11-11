@@ -130,6 +130,29 @@ void barrier(coproto::Socket &sock, bool isServer)
     coproto::sync_wait(sock.flush());
 }
 
+// coproto frames carry a 32-bit length, so one message must stay below 4 GiB (the 2^20 PSI request
+// is ~12 GB). Large buffers are sent as consecutive 1 GiB messages; the receiver splits its
+// (equally sized) buffer the same way. Payload is unchanged; each extra chunk adds an 8-byte header.
+const size_t max_msg_bytes = size_t(1) << 30;
+
+void send_chunked(coproto::Socket &sock, std::vector<osuCrypto::u8> &buf)
+{
+    for (size_t off = 0; off < buf.size(); off += max_msg_bytes)
+    {
+        osuCrypto::span<osuCrypto::u8> part(buf.data() + off, std::min(max_msg_bytes, buf.size() - off));
+        coproto::sync_wait(sock.send(part));
+    }
+}
+
+void recv_chunked(coproto::Socket &sock, std::vector<osuCrypto::u8> &buf)
+{
+    for (size_t off = 0; off < buf.size(); off += max_msg_bytes)
+    {
+        osuCrypto::span<osuCrypto::u8> part(buf.data() + off, std::min(max_msg_bytes, buf.size() - off));
+        coproto::sync_wait(sock.recv(part));
+    }
+}
+
 // Time and traffic of one phase, from one party's point of view.
 struct PhaseStats
 {
@@ -1672,8 +1695,8 @@ int online_client_batch(coproto::Socket &sock, ClientOts &Sc_uint, ClientChoice 
                     { hash_to_a(inputs[ctr], 0, a); }, c_sums, request);
     auto req_end = Clock::now();
 
-    coproto::sync_wait(sock.send(request));
-    coproto::sync_wait(sock.recv(response));
+    send_chunked(sock, request);
+    recv_chunked(sock, response);
     auto resp_received = Clock::now();
 
     client_finalize(response, Rc_r, c_sums, z_log);
@@ -1707,12 +1730,12 @@ int online_server_batch(coproto::Socket &sock, ServerOts &Rs_r,
     barrier(sock, true);
     ResultMeter meter(sock);
 
-    coproto::sync_wait(sock.recv(request));
+    recv_chunked(sock, request);
     auto be_start = Clock::now();
     server_blind_eval(request, Rs_r, Ss, sk, batch, response);
     auto be_end = Clock::now();
 
-    coproto::sync_wait(sock.send(response));
+    send_chunked(sock, response);
     coproto::sync_wait(sock.flush());
     meter.report("server", "online", batch, ms_between(be_start, be_end));
 
@@ -1755,8 +1778,8 @@ int online_client_psi(coproto::Socket &sock, ClientOts &Sc_uint, ClientChoice &b
                     { hash_to_a(client_set[ctr / evals_per_element], ctr % evals_per_element, a); }, c_sums, request);
     auto req_end = Clock::now();
 
-    coproto::sync_wait(sock.send(request));
-    coproto::sync_wait(sock.recv(response));
+    send_chunked(sock, request);
+    recv_chunked(sock, response);
     auto resp_received = Clock::now();
 
     client_finalize(response, Rc_r, c_sums, z);
@@ -1773,7 +1796,7 @@ int online_client_psi(coproto::Socket &sock, ClientOts &Sc_uint, ClientChoice &b
     std::sort(outputs.begin(), outputs.end());
     auto sort_end = Clock::now();
 
-    coproto::sync_wait(sock.recv(encodings));
+    recv_chunked(sock, encodings);
     auto lookup_start = Clock::now();
     std::vector<size_t> found;
     for (size_t s = 0; s < ps.server_size; s++)
@@ -1822,11 +1845,11 @@ int online_server_psi(coproto::Socket &sock, ServerOts &Rs_r,
     ResultMeter oprf(sock);
 
     // 1. OPRF
-    coproto::sync_wait(sock.recv(request));
+    recv_chunked(sock, request);
     auto be_start = Clock::now();
     server_blind_eval(request, Rs_r, Ss, sk, evals, response);
     auto be_end = Clock::now();
-    coproto::sync_wait(sock.send(response));
+    send_chunked(sock, response);
     coproto::sync_wait(sock.flush());
     double oprf_ms = ms_between(be_start, be_end);
     oprf.report("server", "oprf", ps.client_size, oprf_ms);
@@ -1851,7 +1874,7 @@ int online_server_psi(coproto::Socket &sock, ServerOts &Rs_r,
     std::vector<osuCrypto::u8> encodings(sizeof(Out128) * ps.server_size);
     memcpy(encodings.data(), enc.data(), encodings.size());
     auto enc_end = Clock::now();
-    coproto::sync_wait(sock.send(encodings));
+    send_chunked(sock, encodings);
     coproto::sync_wait(sock.flush());
     double set_ms = ms_between(enc_start, enc_end);
     set.report("server", "set", ps.client_size, set_ms);
